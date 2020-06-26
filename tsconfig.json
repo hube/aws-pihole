@@ -18,9 +18,11 @@
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "typeRoots": ["./node_modules/@types"],
-    "plugins": [{
+    "plugins": [
+      {
         "name": "typescript-tslint-plugin"
-    }]
+      }
+    ]
   },
   "exclude": ["cdk.out"]
 }

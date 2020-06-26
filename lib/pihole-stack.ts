@@ -1,7 +1,7 @@
-import * as cdk from '@aws-cdk/core';
-import * as ec2 from '@aws-cdk/aws-ec2';
-import * as ecs from '@aws-cdk/aws-ecs';
-import * as logs from '@aws-cdk/aws-logs';
+import * as cdk from "@aws-cdk/core";
+import * as ec2 from "@aws-cdk/aws-ec2";
+import * as ecs from "@aws-cdk/aws-ecs";
+import * as logs from "@aws-cdk/aws-logs";
 
 // 6/22/2020 - trying to get volumes mounted correctly on the container
 //   Need to add DNS server and other configuration
@@ -19,36 +19,40 @@ export class PiholeStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const vpc = new ec2.Vpc(this, 'Vpc', {
+    const vpc = new ec2.Vpc(this, "Vpc", {
       cidr: this.VPC_CIDR,
       maxAzs: 1,
     });
 
     this.defineVpnResources(vpc);
 
-    const cluster = new ecs.Cluster(this, 'Cluster', {
+    const cluster = new ecs.Cluster(this, "Cluster", {
       vpc: vpc,
     });
 
-    const taskDefinition = new ecs.FargateTaskDefinition(this, 'FargateTaskDefinition', {
-      cpu: 256,
-      memoryLimitMiB: 512,
-      // The CDK and CloudFormation do not currently support EFS volumes for
-      // Fargate tasks. See https://github.com/aws/aws-cdk/issues/6918
-      // volumes: [{ name: 'application_scratch' }],
-    });
+    const taskDefinition = new ecs.FargateTaskDefinition(
+      this,
+      "FargateTaskDefinition",
+      {
+        cpu: 256,
+        memoryLimitMiB: 512,
+        // The CDK and CloudFormation do not currently support EFS volumes for
+        // Fargate tasks. See https://github.com/aws/aws-cdk/issues/6918
+        // volumes: [{ name: 'application_scratch' }],
+      }
+    );
 
-    const container = taskDefinition.addContainer('Container', {
+    const container = taskDefinition.addContainer("Container", {
       // dnsServers: ['127.0.0.1', '1.1.1.1'],
       environment: {
-        'TZ': 'America/Los_Angeles',
+        TZ: "America/Los_Angeles",
         // 'WEBPASSWORD': '',
       },
-      image: ecs.ContainerImage.fromRegistry('pihole/pihole'),
+      image: ecs.ContainerImage.fromRegistry("pihole/pihole"),
       logging: ecs.LogDrivers.awsLogs({
-        streamPrefix: 'pihole',
+        streamPrefix: "pihole",
         logRetention: logs.RetentionDays.ONE_MONTH,
-      })
+      }),
     });
     // Setting these causes startup failures
     // container.addMountPoints(
@@ -64,7 +68,7 @@ export class PiholeStack extends cdk.Stack {
     //   },
     // );
 
-    const service = new ecs.FargateService(this, 'FargateService', {
+    const service = new ecs.FargateService(this, "FargateService", {
       cluster,
       taskDefinition,
       desiredCount: 1,
@@ -77,41 +81,53 @@ export class PiholeStack extends cdk.Stack {
     // we only have one subnet
     const privateSubnetId = vpc.privateSubnets[0].subnetId;
 
-    const clientVpnLogGroup = new logs.LogGroup(this, 'ClientVpnLogGroup', {
+    const clientVpnLogGroup = new logs.LogGroup(this, "ClientVpnLogGroup", {
       // TODO: remove this removal policy when ready for prime time
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       retention: logs.RetentionDays.ONE_MONTH,
     });
 
-    const clientVpnEndpoint = new ec2.CfnClientVpnEndpoint(this, 'ClientVpnEndpoint', {
-      authenticationOptions: [{
-        type: "certificate-authentication",
-        mutualAuthentication: {
-          clientRootCertificateChainArn: this.VPN_CLIENT_CERTIFICATE_ARN,
+    const clientVpnEndpoint = new ec2.CfnClientVpnEndpoint(
+      this,
+      "ClientVpnEndpoint",
+      {
+        authenticationOptions: [
+          {
+            type: "certificate-authentication",
+            mutualAuthentication: {
+              clientRootCertificateChainArn: this.VPN_CLIENT_CERTIFICATE_ARN,
+            },
+          },
+        ],
+        clientCidrBlock: this.CLIENT_VPN_ENDPOINT_CIDR,
+        connectionLogOptions: {
+          cloudwatchLogGroup: clientVpnLogGroup.logGroupName,
+          enabled: true,
         },
-      }],
-      clientCidrBlock: this.CLIENT_VPN_ENDPOINT_CIDR,
-      connectionLogOptions: {
-        cloudwatchLogGroup: clientVpnLogGroup.logGroupName,
-        enabled: true,
-      },
-      serverCertificateArn: this.VPN_SERVER_CERTIFICATE_ARN,
-    });
+        serverCertificateArn: this.VPN_SERVER_CERTIFICATE_ARN,
+      }
+    );
 
-    const clientVpnAuthorizationRule = new ec2.CfnClientVpnAuthorizationRule(this,
-        'ClientVpnAuthorizationRule', {
-          authorizeAllGroups: true,
-          clientVpnEndpointId: clientVpnEndpoint.ref,
-          targetNetworkCidr: this.PUBLIC_INTERNET_CIDR,
-        });
+    const clientVpnAuthorizationRule = new ec2.CfnClientVpnAuthorizationRule(
+      this,
+      "ClientVpnAuthorizationRule",
+      {
+        authorizeAllGroups: true,
+        clientVpnEndpointId: clientVpnEndpoint.ref,
+        targetNetworkCidr: this.PUBLIC_INTERNET_CIDR,
+      }
+    );
 
-    const clientVpnTargetNetworkAssociation = new ec2.CfnClientVpnTargetNetworkAssociation(this,
-        'ClientVpnTargetNetworkAssociation', {
-          clientVpnEndpointId: clientVpnEndpoint.ref,
-          subnetId: privateSubnetId,
-        });
+    const clientVpnTargetNetworkAssociation = new ec2.CfnClientVpnTargetNetworkAssociation(
+      this,
+      "ClientVpnTargetNetworkAssociation",
+      {
+        clientVpnEndpointId: clientVpnEndpoint.ref,
+        subnetId: privateSubnetId,
+      }
+    );
 
-    const clientVpnRoute = new ec2.CfnClientVpnRoute(this, 'ClientVpnRoute', {
+    const clientVpnRoute = new ec2.CfnClientVpnRoute(this, "ClientVpnRoute", {
       clientVpnEndpointId: clientVpnEndpoint.ref,
       destinationCidrBlock: this.PUBLIC_INTERNET_CIDR,
       targetVpcSubnetId: privateSubnetId,
