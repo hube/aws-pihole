@@ -8,7 +8,7 @@ import * as logs from '@aws-cdk/aws-logs';
 export class PiholeStack extends cdk.Stack {
   CLIENT_VPN_ENDPOINT_CIDR = "10.1.0.0/16";
   PUBLIC_INTERNET_CIDR = "0.0.0.0/0";
-  VPC_CIDR = "10.0.0.0/16"; // same as default
+  VPC_CIDR = "10.0.0.0/16"; // same as default, but defining it here for clarity
 
   // These cannot be provisioned automatically
   VPN_CLIENT_CERTIFICATE_ARN =
@@ -78,6 +78,8 @@ export class PiholeStack extends cdk.Stack {
     const privateSubnetId = vpc.privateSubnets[0].subnetId;
 
     const clientVpnLogGroup = new logs.LogGroup(this, 'ClientVpnLogGroup', {
+      // TODO: remove this removal policy when ready for prime time
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
       retention: logs.RetentionDays.ONE_MONTH,
     });
 
