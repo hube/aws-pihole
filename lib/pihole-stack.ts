@@ -22,6 +22,7 @@ export class PiholeStack extends cdk.Stack {
     const vpc = new ec2.Vpc(this, "Vpc", {
       cidr: this.VPC_CIDR,
       maxAzs: 1,
+      vpnGateway: true,
     });
 
     this.defineVpnResources(vpc);
@@ -68,18 +69,22 @@ export class PiholeStack extends cdk.Stack {
     //   },
     // );
 
+    const vpcDefaultSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, "VpcDefaultSecurityGroup", vpc.vpcDefaultSecurityGroup);
+
     const service = new ecs.FargateService(this, "FargateService", {
-      cluster,
-      taskDefinition,
+      cluster: cluster,
+      taskDefinition: taskDefinition,
       desiredCount: 1,
+      // TODO: decide if the service belongs in its own security group
+      securityGroups: [vpcDefaultSecurityGroup],
     });
   }
 
   // The CDK does not currently support client VPN configuration, so we must do
   // this ourselves. See https://github.com/aws/aws-cdk/issues/4206
   defineVpnResources(vpc: ec2.Vpc) {
-    // we only have one subnet
-    const privateSubnetId = vpc.privateSubnets[0].subnetId;
+    // We only have one private subnet
+    const privateSubnet = vpc.privateSubnets[0];
 
     const clientVpnLogGroup = new logs.LogGroup(this, "ClientVpnLogGroup", {
       // TODO: remove this removal policy when ready for prime time
@@ -104,7 +109,9 @@ export class PiholeStack extends cdk.Stack {
           cloudwatchLogGroup: clientVpnLogGroup.logGroupName,
           enabled: true,
         },
+        dnsServers: ["10.0.150.240"], // list of string
         serverCertificateArn: this.VPN_SERVER_CERTIFICATE_ARN,
+        vpcId: vpc.vpcId,
       }
     );
 
@@ -123,14 +130,14 @@ export class PiholeStack extends cdk.Stack {
       "ClientVpnTargetNetworkAssociation",
       {
         clientVpnEndpointId: clientVpnEndpoint.ref,
-        subnetId: privateSubnetId,
+        subnetId: privateSubnet.subnetId,
       }
     );
 
     const clientVpnRoute = new ec2.CfnClientVpnRoute(this, "ClientVpnRoute", {
       clientVpnEndpointId: clientVpnEndpoint.ref,
       destinationCidrBlock: this.PUBLIC_INTERNET_CIDR,
-      targetVpcSubnetId: privateSubnetId,
+      targetVpcSubnetId: privateSubnet.subnetId,
     });
     clientVpnRoute.addDependsOn(clientVpnTargetNetworkAssociation);
   }
