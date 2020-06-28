@@ -5,9 +5,9 @@ import * as elb from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as logs from "@aws-cdk/aws-logs";
 
 export interface PiholeStackProps extends cdk.StackProps {
-  vpnClientCertificateArn?: string,
-  vpnServerCertificateArn?: string,
-  dnsServerIpAddresses?: string[],
+  dnsServerIpAddresses?: string[];
+  vpnClientCertificateArn?: string;
+  vpnServerCertificateArn?: string;
 }
 
 export class PiholeStack extends cdk.Stack {
@@ -30,7 +30,13 @@ export class PiholeStack extends cdk.Stack {
     // Define a client VPN endpoint only when we have setup both a server
     // certificate and a client certificate
     if (props?.vpnServerCertificateArn && props?.vpnClientCertificateArn) {
-      this.defineVpnResources(vpc, privateSubnet, props?.vpnServerCertificateArn, props?.vpnClientCertificateArn, props?.dnsServerIpAddresses);
+      this.defineVpnResources(
+        vpc,
+        privateSubnet,
+        props?.vpnServerCertificateArn,
+        props?.vpnClientCertificateArn,
+        props?.dnsServerIpAddresses
+      );
     }
 
     const cluster = new ecs.Cluster(this, "Cluster", {
@@ -76,7 +82,11 @@ export class PiholeStack extends cdk.Stack {
     //   },
     // );
 
-    const vpcDefaultSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, "VpcDefaultSecurityGroup", vpc.vpcDefaultSecurityGroup);
+    const vpcDefaultSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      "VpcDefaultSecurityGroup",
+      vpc.vpcDefaultSecurityGroup
+    );
 
     const service = new ecs.FargateService(this, "FargateService", {
       cluster: cluster,
@@ -89,7 +99,13 @@ export class PiholeStack extends cdk.Stack {
 
   // The CDK does not currently support client VPN configuration, so we must do
   // this ourselves. See https://github.com/aws/aws-cdk/issues/4206
-  defineVpnResources(vpc: ec2.Vpc, privateSubnet: ec2.ISubnet, vpnServerCertificateArn: string, vpnClientCertificateArn: string, dnsServerIpAddresses?: string[]) {
+  defineVpnResources(
+    vpc: ec2.Vpc,
+    privateSubnet: ec2.ISubnet,
+    vpnServerCertificateArn: string,
+    vpnClientCertificateArn: string,
+    dnsServerIpAddresses?: string[]
+  ) {
     const clientVpnLogGroup = new logs.LogGroup(this, "ClientVpnLogGroup", {
       // TODO: remove this removal policy when ready for prime time
       removalPolicy: cdk.RemovalPolicy.DESTROY,
