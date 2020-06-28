@@ -4,66 +4,8 @@ import * as ecs from "@aws-cdk/aws-ecs";
 import * as elb from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as logs from "@aws-cdk/aws-logs";
 
-// 6/22/2020 - trying to get volumes mounted correctly on the container
-//   Need to add DNS server and other configuration
 export class PiholeStack extends cdk.Stack {
   CLIENT_VPN_ENDPOINT_CIDR = "10.1.0.0/16";
-  // // Take the second-to-last IP address in the private subnet's IPv4 CIDR block
-  // // The last address is reserved by AWS:
-  // // https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Subnets.html#vpc-sizing-ipv4
-  // // TODO: Look into configuring the subnet CIDR blocks to avoid issues with
-  // // hardcoding this IP address
-  // DNS_NLB_IP_ADDRESS = "10.0.255.253";
-  // // Ports taken from:
-  // // https://github.com/pi-hole/docker-pi-hole/#user-content-quick-start
-  // PIHOLE_ECS_PORT_MAPPINGS =
-  //   [
-  //     {
-  //       containerPort: 53,
-  //       protocol: ecs.Protocol.TCP,
-  //     },
-  //     {
-  //       containerPort: 53,
-  //       protocol: ecs.Protocol.UDP,
-  //     },
-  //     {
-  //       containerPort: 67,
-  //       protocol: ecs.Protocol.UDP,
-  //     },
-  //     {
-  //       containerPort: 80,
-  //       protocol: ecs.Protocol.TCP,
-  //     },
-  //     {
-  //       containerPort: 443,
-  //       protocol: ecs.Protocol.TCP,
-  //     },
-  //   ];
-  // PIHOLE_ELB_PORT_MAPPINGS =
-  //   [
-  //     {
-  //       port: 53,
-  //       protocol: elb.Protocol.TCP,
-  //     },
-  //     // AWS does not appear to support IP address target types with UDP load
-  //     // balancing: https://github.com/terraform-aws-modules/terraform-aws-alb/issues/132
-  //     // {
-  //     //   port: 53,
-  //     //   protocol: elb.Protocol.TCP_UDP,
-  //     // },
-  //     // {
-  //     //   port: 67,
-  //     //   protocol: elb.Protocol.UDP,
-  //     // },
-  //     {
-  //       port: 80,
-  //       protocol: elb.Protocol.TCP,
-  //     },
-  //     {
-  //       port: 443,
-  //       protocol: elb.Protocol.TCP,
-  //     },
-  //   ];
   PUBLIC_INTERNET_CIDR = "0.0.0.0/0";
   VPC_CIDR = "10.0.0.0/16"; // same as default, but defining it here for clarity
 
@@ -116,8 +58,6 @@ export class PiholeStack extends cdk.Stack {
       }),
     });
 
-    // container.addPortMappings(...this.PIHOLE_ECS_PORT_MAPPINGS);
-
     // Setting these causes startup failures
     // container.addMountPoints(
     //   {
@@ -141,50 +81,7 @@ export class PiholeStack extends cdk.Stack {
       // TODO: decide if the service belongs in its own security group
       securityGroups: [vpcDefaultSecurityGroup],
     });
-
-    // The CDK does not currently support setting the SubnetMappings property on
-    // NLBs.
-    // TODO: create GitHub issue or PR
-    // const nlb = new class extends elb.NetworkLoadBalancer {
-    //   constructor(scope: cdk.Construct, id: string, props: elb.NetworkLoadBalancerProps) {
-    //     super(scope, id, props);
-    //   }
-    // }(this, "NetworkLoadBalancer", {
-    //   vpc: vpc,
-    // });
-
-    // this.defineDnsNlb(vpc, privateSubnet, service);
   }
-
-  // defineDnsNlb(vpc: ec2.Vpc, privateSubnet: ec2.ISubnet, service: ecs.FargateService) {
-  //   const cfnNlb = new elb.CfnLoadBalancer(this, "CfnNetworkLoadBalancer", {
-  //     scheme: "internal",
-  //     subnetMappings: [{
-  //       privateIPv4Address: this.DNS_NLB_IP_ADDRESS,
-  //       subnetId: privateSubnet.subnetId,
-  //     }],
-  //     type: "network",
-  //   });
-
-  //   const nlb = elb.NetworkLoadBalancer.fromNetworkLoadBalancerAttributes(this, "NetworkLoadBalancer", {
-  //     loadBalancerArn: cfnNlb.ref
-  //   });
-
-  //   this.PIHOLE_ELB_PORT_MAPPINGS.forEach((portMapping) => {
-  //     const port = portMapping.port;
-
-  //     new elb.NetworkListener(this, `Port${port}NetworkListener`, {
-  //       defaultTargetGroups: [
-  //         new elb.NetworkTargetGroup(this, `Port${port}NetworkTargetGroup`, {
-  //         ...portMapping,
-  //         targets: [service],
-  //         vpc: vpc,
-  //       })],
-  //       loadBalancer: nlb,
-  //       ...portMapping,
-  //     });
-  //   });
-  // }
 
   // The CDK does not currently support client VPN configuration, so we must do
   // this ourselves. See https://github.com/aws/aws-cdk/issues/4206
