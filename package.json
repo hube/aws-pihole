@@ -26,6 +26,7 @@
     "@aws-cdk/core": "1.46.0",
     "@aws-cdk/aws-ec2": "1.46.0",
     "@aws-cdk/aws-ecs": "1.46.0",
+    "@aws-cdk/aws-elasticloadbalancingv2": "1.46.0",
     "@aws-cdk/aws-logs": "1.46.0",
     "source-map-support": "^0.5.16",
     "typescript-tslint-plugin": "^0.5.5"
