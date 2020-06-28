@@ -25,7 +25,10 @@ export class PiholeStack extends cdk.Stack {
       vpnGateway: true,
     });
 
-    this.defineVpnResources(vpc);
+    // We only have one private subnet
+    const privateSubnet = vpc.privateSubnets[0];
+
+    this.defineVpnResources(vpc, privateSubnet);
 
     const cluster = new ecs.Cluster(this, "Cluster", {
       vpc: vpc,
@@ -82,10 +85,7 @@ export class PiholeStack extends cdk.Stack {
 
   // The CDK does not currently support client VPN configuration, so we must do
   // this ourselves. See https://github.com/aws/aws-cdk/issues/4206
-  defineVpnResources(vpc: ec2.Vpc) {
-    // We only have one private subnet
-    const privateSubnet = vpc.privateSubnets[0];
-
+  defineVpnResources(vpc: ec2.Vpc, privateSubnet: ec2.ISubnet) {
     const clientVpnLogGroup = new logs.LogGroup(this, "ClientVpnLogGroup", {
       // TODO: remove this removal policy when ready for prime time
       removalPolicy: cdk.RemovalPolicy.DESTROY,
