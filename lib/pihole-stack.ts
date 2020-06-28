@@ -4,18 +4,18 @@ import * as ecs from "@aws-cdk/aws-ecs";
 import * as elb from "@aws-cdk/aws-elasticloadbalancingv2";
 import * as logs from "@aws-cdk/aws-logs";
 
+export interface PiholeStackProps extends cdk.StackProps {
+  vpnClientCertificateArn?: string,
+  vpnServerCertificateArn?: string,
+  dnsServerIpAddresses?: string[],
+}
+
 export class PiholeStack extends cdk.Stack {
   CLIENT_VPN_ENDPOINT_CIDR = "10.1.0.0/16";
   PUBLIC_INTERNET_CIDR = "0.0.0.0/0";
   VPC_CIDR = "10.0.0.0/16"; // same as default, but defining it here for clarity
 
-  // These cannot be provisioned automatically
-  VPN_CLIENT_CERTIFICATE_ARN =
-    "arn:aws:acm:us-west-2:628178282749:certificate/2dfc2d16-227c-4ba4-9388-602d5d733613";
-  VPN_SERVER_CERTIFICATE_ARN =
-    "arn:aws:acm:us-west-2:628178282749:certificate/7708232b-1fdf-475a-a67a-669df7207318";
-
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.Construct, id: string, props?: PiholeStackProps) {
     super(scope, id, props);
 
     const vpc = new ec2.Vpc(this, "Vpc", {
@@ -27,7 +27,11 @@ export class PiholeStack extends cdk.Stack {
     // We only have one private subnet
     const privateSubnet = vpc.privateSubnets[0];
 
-    this.defineVpnResources(vpc, privateSubnet);
+    // Define a client VPN endpoint only when we have setup both a server
+    // certificate and a client certificate
+    if (props?.vpnServerCertificateArn && props?.vpnClientCertificateArn) {
+      this.defineVpnResources(vpc, privateSubnet, props?.vpnServerCertificateArn, props?.vpnClientCertificateArn, props?.dnsServerIpAddresses);
+    }
 
     const cluster = new ecs.Cluster(this, "Cluster", {
       vpc: vpc,
@@ -85,7 +89,7 @@ export class PiholeStack extends cdk.Stack {
 
   // The CDK does not currently support client VPN configuration, so we must do
   // this ourselves. See https://github.com/aws/aws-cdk/issues/4206
-  defineVpnResources(vpc: ec2.Vpc, privateSubnet: ec2.ISubnet) {
+  defineVpnResources(vpc: ec2.Vpc, privateSubnet: ec2.ISubnet, vpnServerCertificateArn: string, vpnClientCertificateArn: string, dnsServerIpAddresses?: string[]) {
     const clientVpnLogGroup = new logs.LogGroup(this, "ClientVpnLogGroup", {
       // TODO: remove this removal policy when ready for prime time
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -100,7 +104,7 @@ export class PiholeStack extends cdk.Stack {
           {
             type: "certificate-authentication",
             mutualAuthentication: {
-              clientRootCertificateChainArn: this.VPN_CLIENT_CERTIFICATE_ARN,
+              clientRootCertificateChainArn: vpnClientCertificateArn,
             },
           },
         ],
@@ -109,8 +113,8 @@ export class PiholeStack extends cdk.Stack {
           cloudwatchLogGroup: clientVpnLogGroup.logGroupName,
           enabled: true,
         },
-        dnsServers: ["10.0.150.240"], // list of string
-        serverCertificateArn: this.VPN_SERVER_CERTIFICATE_ARN,
+        dnsServers: dnsServerIpAddresses,
+        serverCertificateArn: vpnServerCertificateArn,
         vpcId: vpc.vpcId,
       }
     );
