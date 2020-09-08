@@ -49,7 +49,7 @@ $ aws acm import-certificate --certificate fileb://pki/issued/$CLIENT_DOMAIN_NAM
 ```
 
 ```sh
-$ CLIENT_VPN_ENDPOINT_ID=cvpn-endpoint-04cc056c459a8e837
+$ CLIENT_VPN_ENDPOINT_ID=
 $ aws ec2 export-client-vpn-client-configuration --client-vpn-endpoint-id $CLIENT_VPN_ENDPOINT_ID --output text --profile $AWS_PROFILE > pihole_vpn_config.ovpn
 ```
 
